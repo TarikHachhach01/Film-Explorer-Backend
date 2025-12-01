@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: film-explorer
+
+  # ============================================
+  # DATABASE CONFIGURATION
+  # ============================================
+  datasource:
+    url: jdbc:postgresql://localhost:5432/filmexplorer
+    username: postgres
+    password: zougrom00
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        enable_lazy_load_no_trans: true
+
+# ============================================
+# APPLICATION CONFIGURATION
+# ============================================
+application:
+  security:
+    jwt:
+      secret-key: 1606dd5935da7cc979d3fcb491d26c5ee69220138b39cf9eb80d509906aa418b
+      expiration: 86400000  # 24 heures en millisecondes
+      refresh-token:
+        expiration: 604800000  # 7 jours en millisecondes
+
+# ============================================
+# SERVER CONFIGURATION
+# ============================================
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# ============================================
+# LOGGING CONFIGURATION
+# ============================================
+logging:
+  level:
+    root: INFO
+    com.isfa.dsi.filmexplorer: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

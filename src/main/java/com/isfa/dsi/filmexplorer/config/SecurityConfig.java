@@ -72,7 +72,12 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:4200",
                 "http://localhost:3000",
-                "http://127.0.0.1:4200"
+                "http://127.0.0.1:4200",
+                "http://localhost:4200",
+                "http://localhost:3000",
+                "http://127.0.0.1:4200",
+                "https://*.vercel.app",          // All Vercel deployments
+                "https://moviesapp-*.vercel.app"
         ));
 
         // Allow methods

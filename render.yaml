@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: film-explorer-backend
+    runtime: java
+    plan: free
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: JAVA_VERSION
+        value: 21
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: validate
+
+  - type: pgsql
+    name: film-explorer-db
+    plan: free
+    region: frankfurt
+    databaseName: filmexplorer
+    user: filmuser
+    ipAllowList: []

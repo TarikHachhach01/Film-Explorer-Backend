@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: film-explorer
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET}
+      expiration: 86400000
+      refresh-token:
+        expiration: 604800000
+
+server:
+  port: ${PORT:8080}
+
+logging:
+  level:
+    root: WARN
+    com.isfa.dsi.filmexplorer: INFO

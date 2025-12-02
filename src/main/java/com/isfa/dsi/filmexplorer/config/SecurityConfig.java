@@ -68,14 +68,16 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allow origins
-        configuration.setAllowedOrigins(Arrays.asList(
+        // ✅ CRITICAL FIX: Use setAllowedOriginPatterns() for regex patterns
+        // setAllowedOrigins() does NOT support wildcard patterns!
+        // Regex patterns: https://.*\.vercel\.app matches https://film-explorer-front-end.vercel.app, etc.
+        configuration.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:4200",
                 "http://localhost:3000",
                 "http://127.0.0.1:4200",
-                "https://film-explorer-backend.onrender.com",  // Allow self
-                "https://*.vercel.app",          // All Vercel deployments
-                "https://*.onrender.com"         // All Render deployments
+                "https://film-explorer-backend.onrender.com",
+                "https://.*\\.vercel\\.app",          // Regex: all Vercel deployments
+                "https://.*\\.onrender\\.com"         // Regex: all Render deployments
         ));
 
         // Allow methods

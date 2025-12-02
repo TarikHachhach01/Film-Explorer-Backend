@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.Optional;
 
-@CrossOrigin("http://localhost:4200/")
 @Repository
 public interface MoviesRepo  extends JpaRepository<Movies, Long> , JpaSpecificationExecutor<Movies> {
 

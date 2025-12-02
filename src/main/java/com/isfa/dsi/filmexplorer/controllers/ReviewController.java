@@ -23,7 +23,6 @@ import java.util.Map;
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "http://localhost:4200")
 public class ReviewController {
 
     private final ReviewService reviewService;

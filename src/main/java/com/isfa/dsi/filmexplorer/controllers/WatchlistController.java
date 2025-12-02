@@ -23,7 +23,6 @@ import java.util.List;
 @RequestMapping("/api/watchlist")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "http://localhost:4200")
 public class WatchlistController {
 
     private final WatchlistService watchlistService;

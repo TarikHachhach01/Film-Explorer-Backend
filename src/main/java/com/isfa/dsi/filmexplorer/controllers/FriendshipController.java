@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/friends")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "http://localhost:4200")
 public class FriendshipController {
 
     private final FriendshipService friendshipService;

@@ -26,7 +26,6 @@ import java.util.Optional;
 @RequestMapping("/api/movies")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "http://localhost:4200")
 public class MoviesController {
 
     private final MovieService movieService;

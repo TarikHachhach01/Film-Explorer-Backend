@@ -68,16 +68,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // ✅ CRITICAL FIX: Use setAllowedOriginPatterns() for regex patterns
-        // setAllowedOrigins() does NOT support wildcard patterns!
-        // Regex patterns: https://.*\.vercel\.app matches https://film-explorer-front-end.vercel.app, etc.
-        configuration.setAllowedOriginPatterns(Arrays.asList(
+        // ✅ FIX: Use EXACT origins, not patterns, because allowCredentials=true
+        // CORS spec: cannot use wildcard origins when credentials are enabled
+        // Therefore: use exact origin URLs instead
+        configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:4200",
                 "http://localhost:3000",
                 "http://127.0.0.1:4200",
                 "https://film-explorer-backend.onrender.com",
-                "https://.*\\.vercel\\.app",          // Regex: all Vercel deployments
-                "https://.*\\.onrender\\.com"         // Regex: all Render deployments
+                "https://film-explorer-front-end.vercel.app"
         ));
 
         // Allow methods
@@ -95,7 +94,7 @@ public class SecurityConfig {
                 "X-Total-Count"
         ));
 
-        // Allow credentials (cookies, authorization headers)
+        // Allow credentials (cookies, authorization headers) - REQUIRED for JWT
         configuration.setAllowCredentials(true);
 
         // Cache preflight response for 1 hour

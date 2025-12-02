@@ -33,27 +33,27 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(authz -> authz
+                        // Public endpoints for health checks and errors
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers("/").permitAll()
 
+                        // CORS preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-
+                        // Auth endpoints (public)
                         .requestMatchers("/api/auth/register").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/refresh").permitAll()
 
-
+                        // Movie endpoints (public)
                         .requestMatchers(HttpMethod.POST, "/api/movies/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/movies/**").permitAll()
 
-
+                        // Protected endpoints
                         .requestMatchers("/api/watchlist/**").authenticated()
-
-
                         .requestMatchers("/api/friends/**").authenticated()
-
-
                         .requestMatchers("/api/reviews/**").authenticated()
-
 
                         .anyRequest().authenticated()
                 );
@@ -73,11 +73,9 @@ public class SecurityConfig {
                 "http://localhost:4200",
                 "http://localhost:3000",
                 "http://127.0.0.1:4200",
-                "http://localhost:4200",
-                "http://localhost:3000",
-                "http://127.0.0.1:4200",
+                "https://film-explorer-backend.onrender.com",  // Allow self
                 "https://*.vercel.app",          // All Vercel deployments
-                "https://moviesapp-*.vercel.app"
+                "https://*.onrender.com"         // All Render deployments
         ));
 
         // Allow methods

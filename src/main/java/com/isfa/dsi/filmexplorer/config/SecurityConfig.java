@@ -76,7 +76,8 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://127.0.0.1:4200",
                 "https://film-explorer-backend.onrender.com",
-                "https://film-explorer-front-end.vercel.app"
+                "https://film-explorer-front-end.vercel.app",
+                "https://film-explorer-front-end-oqtu.vercel.app"
         ));
 
         // Allow methods

@@ -18,13 +18,6 @@ spring:
       hibernate:
         format_sql: false
 
-  security:
-    jwt:
-      secret-key: ${JWT_SECRET}
-      expiration: 86400000
-      refresh-token:
-        expiration: 604800000
-
 server:
   port: ${PORT:8080}
   address: 0.0.0.0
@@ -35,3 +28,11 @@ logging:
   level:
     root: WARN
     com.isfa.dsi.filmexplorer: INFO
+
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET:1606dd5935da7cc979d3fcb491d26c5ee69220138b39cf9eb80d509906aa418b}
+      expiration: 86400000
+      refresh-token:
+        expiration: 604800000

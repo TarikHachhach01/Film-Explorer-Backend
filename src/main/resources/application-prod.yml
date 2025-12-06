@@ -1,30 +1,148 @@
 spring:
   application:
     name: film-explorer
+
+  # ============================================
+  # DATABASE CONFIGURATION - PRODUCTION
+  # ============================================
   datasource:
     url: ${DATABASE_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+
+    # ✅ HIKARICP CONNECTION POOLING - CRITICAL FOR PERFORMANCE
+    hikari:
+      # Pool size: balance between connections and memory
+      # Starter plan ($7) has limited resources, so keep it moderate
+      maximum-pool-size: 8          # Max concurrent connections (was unlimited!)
+      minimum-idle: 2               # Min idle connections to keep open
+      connection-timeout: 20000     # 20 seconds to get a connection
+      idle-timeout: 600000          # 10 minutes idle timeout
+      max-lifetime: 1800000         # 30 minutes max lifetime per connection
+      auto-commit: true
+      connection-test-query: "SELECT 1"
+      leak-detection-threshold: 60000  # 60 seconds - warn if connection held too long
+
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.PostgreSQL10Dialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate            # ✅ CHANGED: validate (not update!) - safer for production
+
+    # ✅ SHOW SQL ONLY IN DEBUG - HUGE PERFORMANCE IMPACT
     show-sql: false
+    open-in-view: false              # ✅ CRITICAL: Disable lazy loading outside of transactions
 
-application:
-  security:
-    jwt:
-      secret-key: ${JWT_SECRET}
-      expiration: 86400000
-      refresh-token:
-        expiration: 604800000
+    properties:
+      hibernate:
+        # ============================================
+        # QUERY OPTIMIZATION
+        # ============================================
 
-server:
-  port: ${PORT:8080}
-  address: 0.0.0.0
+        # ✅ BATCH PROCESSING - Insert/update 20 rows at once instead of 1 by 1
+        jdbc:
+          batch_size: 20
+          fetch_size: 1000             # Fetch 1000 rows at a time from database
+          batch_versioned_data: true
+          use_get_generated_keys: true # Validate connections - prevent "connection closed"
 
+        # ✅ ORDER INSERTS - Better batch processing
+        order_inserts: true
+        order_updates: true
+
+        # ✅ FORMAT SQL - For logging readability (minimal performance impact with show-sql: false)
+        format_sql: false
+
+        # ============================================
+        # CACHING CONFIGURATION
+        # ============================================
+
+        # ✅ ENABLE QUERY RESULT CACHING - Cache repeated queries
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+        # ✅ GENERATE STATISTICS - For monitoring (disable if performance critical)
+        generate_statistics: false
+
+        # ============================================
+        # FETCH STRATEGY - CRITICAL FOR N+1 PROBLEMS
+        # ============================================
+
+        # ✅ REMOVED: enable_lazy_load_no_trans (VERY DANGEROUS!)
+        # This was opening transactions everywhere, causing massive overhead
+
+        # ✅ USE BYTE CODE ENHANCEMENT - Better lazy loading
+        enhancer:
+          enableDirtyTracking: true
+          enableLazyInitialization: true
+          enableAssociationManagement: true
+
+        # ============================================
+        # CONNECTION ISOLATION LEVEL
+        # ============================================
+
+        connection:
+          isolation: 2  # READ_COMMITTED (balance between safety and performance)
+
+  # ============================================
+  # LOGGING - PRODUCTION (MINIMAL)
+  # ============================================
 logging:
   level:
     root: WARN
     com.isfa.dsi.filmexplorer: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ============================================
+# APPLICATION SECURITY
+# ============================================
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET}
+      expiration: 86400000           # 24 hours
+      refresh-token:
+        expiration: 604800000        # 7 days
+
+# ============================================
+# SERVER CONFIGURATION
+# ============================================
+server:
+  port: ${PORT:8080}
+  address: 0.0.0.0
+
+  # ✅ TOMCAT TUNING FOR PRODUCTION
+  tomcat:
+    max-threads: 200                 # Max request handling threads
+    min-spare-threads: 10            # Min idle threads
+    max-connections: 10000           # Max incoming connections
+    accept-count: 100                # Queue size when all threads busy
+    connection-timeout: 20000        # 20 seconds
+
+  # ✅ COMPRESSION - Reduce bandwidth
+  compression:
+    enabled: true
+    min-response-size: 1024          # Only compress responses > 1KB
+    mime-types: application/json,text/html,text/xml,text/plain
+
+  # ✅ ERROR HANDLING
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# ============================================
+# ACTUATOR - HEALTH CHECKS
+# ============================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

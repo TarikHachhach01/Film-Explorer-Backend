@@ -3,7 +3,7 @@ spring:
     name: film-explorer
 
   # ============================================
-  # DATABASE CONFIGURATION
+  # DATABASE CONFIGURATION - LOCAL/DEVELOPMENT
   # ============================================
   datasource:
     url: jdbc:postgresql://localhost:5432/filmexplorer
@@ -11,41 +11,104 @@ spring:
     password: zougrom00
     driver-class-name: org.postgresql.Driver
 
+    # ✅ HIKARICP FOR LOCAL - Less strict than production
+    hikari:
+      maximum-pool-size: 10          # Can be more generous in local
+      minimum-idle: 2
+      connection-timeout: 10000      # 10 seconds
+      idle-timeout: 600000           # 10 minutes
+      max-lifetime: 1800000          # 30 minutes
+      auto-commit: true
+
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
-    show-sql: false
+      ddl-auto: update               # ✅ KEEP: update for local development
+
+    show-sql: false                  # Set to true temporarily for debugging
+    open-in-view: false              # ✅ IMPORTANT: Keep false for best practices
+
     properties:
       hibernate:
+        # ============================================
+        # QUERY OPTIMIZATION
+        # ============================================
+
+        # ✅ BATCH PROCESSING
+        jdbc:
+          batch_size: 20
+          fetch_size: 1000
+          batch_versioned_data: true
+
+        # ✅ ORDER INSERTS/UPDATES
+        order_inserts: true
+        order_updates: true
+
+        # ✅ FORMAT SQL - Good for development debugging
         format_sql: true
-        enable_lazy_load_no_trans: true
+
+        # ============================================
+        # CACHING - Local development
+        # ============================================
+
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+        # ✅ SHOW STATISTICS - Good for optimization in development
+        generate_statistics: false
+
+        # ============================================
+        # LAZY LOADING - NO DANGEROUS SETTINGS!
+        # ============================================
+
+        # ✅ BYTE CODE ENHANCEMENT
+        enhancer:
+          enableDirtyTracking: true
+          enableLazyInitialization: true
+          enableAssociationManagement: true
+
+        # ✅ CONNECTION VALIDATION
+        jdbc:
+          use_get_generated_keys: true
+
+        connection:
+          isolation: 2  # READ_COMMITTED
+
+  # ============================================
+  # LOGGING - DEVELOPMENT (MORE DETAILED)
+  # ============================================
+logging:
+  level:
+    root: INFO
+    com.isfa.dsi.filmexplorer: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 # ============================================
-# APPLICATION CONFIGURATION
+# APPLICATION SECURITY
 # ============================================
 application:
   security:
     jwt:
       secret-key: 1606dd5935da7cc979d3fcb491d26c5ee69220138b39cf9eb80d509906aa418b
-      expiration: 86400000  # 24 heures en millisecondes
+      expiration: 86400000           # 24 hours
       refresh-token:
-        expiration: 604800000  # 7 jours en millisecondes
+        expiration: 604800000        # 7 days
 
 # ============================================
-# SERVER CONFIGURATION
+# SERVER CONFIGURATION - LOCAL
 # ============================================
 server:
   port: 8080
   servlet:
     context-path: /
 
-# ============================================
-# LOGGING CONFIGURATION
-# ============================================
-logging:
-  level:
-    root: INFO
-    com.isfa.dsi.filmexplorer: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  # ✅ TOMCAT - Development doesn't need tuning
+  tomcat:
+    max-threads: 100
+    min-spare-threads: 5

@@ -3,17 +3,25 @@ services:
     name: film-explorer-backend
     runtime: java
     plan: free
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/*.jar
-    healthCheckPath: /actuator/health
+    region: frankfurt
+    buildCommand: mvn clean package -DskipTests -Pprod -q  # QUIET BUILD
+    startCommand: java -Xmx256m -Xms128m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -jar target/*.jar
+    healthCheckPath: /api/health
+    healthCheckTimeout: 60
     autoDeploy: true
     envVars:
       - key: JAVA_VERSION
-        value: 21
+        value: 17                                   # DOWNGRADE to Java 17 (smaller)
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
-        value: validate
+      - key: JAVA_OPTS
+        value: "-Xmx256m -Xms128m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=40"
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "2"
+      - key: SERVER_TOMCAT_MAX_THREADS
+        value: "3"
+      - key: MANAGEMENT_ENDPOINTS_ENABLED_BY_DEFAULT
+        value: "false"
 
   - type: pgsql
     name: film-explorer-db

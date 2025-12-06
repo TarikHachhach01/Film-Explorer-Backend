@@ -1,16 +1,54 @@
+# app.prod.yaml - OPTIMIZED FOR 512MB RAM
 spring:
   application:
     name: film-explorer
   datasource:
-    url: ${DATABASE_URL}
+    url: ${DATABASE_URL}?sslmode=require
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 2                          # ONLY 2 CONNECTIONS!
+      minimum-idle: 1
+      connection-timeout: 60000                     # 60s timeout
+      max-lifetime: 120000                          # 2 minutes
+      idle-timeout: 30000                           # 30s idle
+      leak-detection-threshold: 0                   # DISABLE leak detection
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
+      jdbc:
+        batch_size: 5                               # TINY batches
+        fetch_size: 10                              # TINY fetch size
     show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+        jdbc:
+          batch_size: 0                             # DISABLE batching
+          fetch_size: 10
+        temp.use_jdbc_metadata_defaults: false
+        connection.provider_disables_autocommit: true
+        order_updates: false                        # DISABLE ordering
+        order_inserts: false
+        query.fail_on_pagination_over_collection_fetch: false
+
+  # DISABLE EVERYTHING NON-ESSENTIAL
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.tracing.TracingAutoConfiguration
+      - org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration
+      - org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration
+
+  # NO CACHE - uses too much memory
+  cache:
+    type: none
 
 application:
   security:
@@ -23,8 +61,32 @@ application:
 server:
   port: ${PORT:8080}
   address: 0.0.0.0
+  compression:
+    enabled: false                                  # DISABLE compression (CPU intensive)
+  tomcat:
+    max-threads: 3                                  # ONLY 3 THREADS!
+    min-spare-threads: 1
+    connection-timeout: 60000
+    max-connections: 10
+    keep-alive-timeout: 15000
+    background-processor-delay: 30
+    accept-count: 10
 
+# DISABLE ALL MANAGEMENT ENDPOINTS
+management:
+  endpoints:
+    enabled-by-default: false
+  endpoint:
+    health:
+      enabled: false
+
+# MINIMAL LOGGING
 logging:
   level:
-    root: WARN
-    com.isfa.dsi.filmexplorer: INFO
+    root: ERROR                                     # ERROR ONLY
+    com.isfa.dsi.filmexplorer: WARN
+    org.hibernate: OFF                              # DISABLE Hibernate logging
+    org.springframework: OFF
+    com.zaxxer.hikari: OFF
+  pattern:
+    console: "%msg%n"                               # SIMPLEST POSSIBLE

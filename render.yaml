@@ -1,32 +1,22 @@
-# render.yaml - YOUR ORIGINAL + MEMORY OPTIMIZATION
 services:
   - type: web
     name: film-explorer-backend
-    runtime: java
+    env: java
     plan: free
     region: frankfurt
-    buildCommand: mvn clean package -DskipTests
-    # ADDED: Memory limits for 512MB instance
-    startCommand: java -Xmx256m -Xms128m -jar target/*.jar
-    healthCheckPath: /actuator/health
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -Xmx512m -Xms256m -jar target/film-explorer-0.0.1-SNAPSHOT.jar
+    healthCheckPath: /
     autoDeploy: true
     envVars:
-      - key: JAVA_VERSION
-        value: 21
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      # ADDED: These 3 environment variables are CRITICAL
-      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
-        value: update
-      - key: JAVA_TOOL_OPTIONS
-        value: "-Xmx256m -Xms128m -XX:MaxMetaspaceSize=128m"
-      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
-        value: "3"
+      - key: JAVA_VERSION
+        value: 21
 
-  - type: pgsql
-    name: film-explorer-db
-    plan: free
-    region: frankfurt
+databases:
+  - name: film-explorer-db
     databaseName: filmexplorer
     user: filmuser
-    ipAllowList: []
+    region: frankfurt
+    plan: free

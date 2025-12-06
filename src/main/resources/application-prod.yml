@@ -1,21 +1,15 @@
-# app.prod.yaml - YOUR ORIGINAL + ONLY ESSENTIAL OPTIMIZATIONS
 spring:
   application:
     name: film-explorer
   datasource:
-    url: ${DATABASE_URL}?sslmode=require
+    url: ${DATABASE_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-    # ADDED: Connection pool optimization (free tier safe)
-    hikari:
-      maximum-pool-size: 3
-      minimum-idle: 1
-      connection-timeout: 30000
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: validate  # CHANGED from 'update' - this is CRITICAL
+      ddl-auto: update
     show-sql: false
 
 application:
@@ -29,14 +23,8 @@ application:
 server:
   port: ${PORT:8080}
   address: 0.0.0.0
-  # ADDED: Enable compression (free performance)
-  compression:
-    enabled: true
 
-# REDUCED logging to save memory
 logging:
   level:
     root: WARN
     com.isfa.dsi.filmexplorer: INFO
-    org.hibernate: ERROR      # REDUCED from default
-    org.springframework: WARN # REDUCED from default

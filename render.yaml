@@ -17,7 +17,7 @@ services:
         value: prod
       # ADDED: These 3 environment variables are CRITICAL
       - key: SPRING_JPA_HIBERNATE_DDL_AUTO
-        value: validate
+        value: update
       - key: JAVA_TOOL_OPTIONS
         value: "-Xmx256m -Xms128m -XX:MaxMetaspaceSize=128m"
       - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE

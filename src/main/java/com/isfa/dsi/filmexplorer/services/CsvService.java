@@ -11,10 +11,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -54,10 +54,6 @@ public class CsvService {
 
             log.info("CSV Headers: {}", headerLine);
 
-            // Parse header to get column indices (handles any column order)
-            Map<String, Integer> columnIndex = parseHeader(headerLine);
-            log.info("Column indices: {}", columnIndex);
-
             // Read data lines
             String line;
             while ((line = reader.readLine()) != null) {
@@ -69,7 +65,7 @@ public class CsvService {
                 }
 
                 try {
-                    Movies movie = parseCsvLine(line, lineNumber, columnIndex);
+                    Movies movie = parseCsvLine(line, lineNumber);
                     moviesToSave.add(movie);
                     successCount++;
 
@@ -109,210 +105,49 @@ public class CsvService {
                 .build();
     }
 
-    /**
-     * Parse CSV header and map column names to indices
-     * Handles both standard format and pgAdmin export format
-     */
-    private Map<String, Integer> parseHeader(String headerLine) {
-        Map<String, Integer> columnIndex = new HashMap<>();
-        String[] columns = parseCSVFields(headerLine);
 
-        for (int i = 0; i < columns.length; i++) {
-            String colName = columns[i].trim().toLowerCase().replaceAll("\"", "");
-            columnIndex.put(colName, i);
+    private Movies parseCsvLine(String line, int lineNumber) {
+        // Split by comma, but handle commas in quoted fields
+        String[] fields = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
+
+        if (fields.length < 6) {
+            throw new IllegalArgumentException("Insufficient fields (minimum 6 required)");
         }
-
-        return columnIndex;
-    }
-
-    /**
-     * Parse CSV fields properly handling quoted fields with commas
-     */
-    private String[] parseCSVFields(String line) {
-        List<String> fields = new ArrayList<>();
-        StringBuilder currentField = new StringBuilder();
-        boolean insideQuotes = false;
-
-        for (int i = 0; i < line.length(); i++) {
-            char c = line.charAt(i);
-
-            if (c == '"') {
-                insideQuotes = !insideQuotes;
-            } else if (c == ',' && !insideQuotes) {
-                fields.add(currentField.toString());
-                currentField = new StringBuilder();
-            } else {
-                currentField.append(c);
-            }
-        }
-        fields.add(currentField.toString());
-
-        return fields.toArray(new String[0]);
-    }
-
-    /**
-     * Parse a single CSV line using column indices
-     * Supports both standard and pgAdmin export formats
-     */
-    private Movies parseCsvLine(String line, int lineNumber, Map<String, Integer> columnIndex) {
-        String[] fields = parseCSVFields(line);
 
         Movies movie = new Movies();
 
         try {
-            // Try to get ID from column index
-            Integer idIdx = columnIndex.get("id");
-            if (idIdx != null && idIdx < fields.length) {
-                String idStr = getValue(fields, idIdx);
-                if (!idStr.isEmpty()) {
-                    movie.setId(Long.parseLong(idStr));
-                }
-            }
+            // Required fields
+            movie.setTitle(cleanField(fields[0]));
+            movie.setReleaseYear(parseBigDecimal(fields[1]));
+            movie.setVoteAverage(parseBigDecimal(fields[2]));
+            movie.setVoteCount(parseLong(fields[3]));
+            movie.setRuntime(parseInteger(fields[4]));
+            movie.setDirector(cleanField(fields[5]));
 
-            // Title (required - try different column names)
-            String titleStr = getValueByColumnNames(fields, columnIndex, "title");
-            if (titleStr != null) {
-                movie.setTitle(titleStr);
-            } else {
-                throw new IllegalArgumentException("Title not found in CSV");
-            }
+            // Optional fields
+            if (fields.length > 6) movie.setGenresList(cleanField(fields[6]));
+            if (fields.length > 7) movie.setOverview(cleanField(fields[7]));
+            if (fields.length > 8) movie.setPosterPath(cleanField(fields[8]));
+            if (fields.length > 9) movie.setImdbRating(parseBigDecimal(fields[9]));
+            if (fields.length > 10) movie.setStar1(cleanField(fields[10]));
+            if (fields.length > 11) movie.setStar2(cleanField(fields[11]));
+            if (fields.length > 12) movie.setStar3(cleanField(fields[12]));
+            if (fields.length > 13) movie.setStar4(cleanField(fields[13]));
 
-            // Release Year
-            String releaseYearStr = getValueByColumnNames(fields, columnIndex, "release_year");
-            if (releaseYearStr != null) {
-                movie.setReleaseYear(new BigDecimal(releaseYearStr));
-            }
-
-            // Vote Average
-            String voteAvgStr = getValueByColumnNames(fields, columnIndex, "vote_average");
-            if (voteAvgStr != null) {
-                movie.setVoteAverage(new BigDecimal(voteAvgStr));
-            }
-
-            // Vote Count
-            String voteCountStr = getValueByColumnNames(fields, columnIndex, "vote_count");
-            if (voteCountStr != null) {
-                movie.setVoteCount(Long.parseLong(voteCountStr));
-            }
-
-            // Runtime
-            String runtimeStr = getValueByColumnNames(fields, columnIndex, "runtime");
-            if (runtimeStr != null) {
-                movie.setRuntime(Integer.parseInt(runtimeStr));
-            }
-
-            // Director
-            String directorStr = getValueByColumnNames(fields, columnIndex, "director");
-            movie.setDirector(directorStr != null ? directorStr : "Unknown");
-
-            // Genres List
-            String genresStr = getValueByColumnNames(fields, columnIndex, "genres_list");
-            if (genresStr != null) {
-                movie.setGenresList(genresStr);
-            }
-
-            // Overview
-            String overviewStr = getValueByColumnNames(fields, columnIndex, "overview");
-            if (overviewStr != null) {
-                movie.setOverview(overviewStr);
-            }
-
-            // Poster Path (CRITICAL!)
-            String posterPathStr = getValueByColumnNames(fields, columnIndex, "poster_path");
-            if (posterPathStr != null) {
-                movie.setPosterPath(posterPathStr);
-                log.debug("Poster path set: {} for movie: {}", posterPathStr, movie.getTitle());
-            } else {
-                log.debug("No poster_path for movie: {}", movie.getTitle());
-            }
-
-            // IMDB Rating
-            String imdbRatingStr = getValueByColumnNames(fields, columnIndex, "imdb_rating");
-            if (imdbRatingStr != null) {
-                try {
-                    movie.setImdbRating(new BigDecimal(imdbRatingStr));
-                } catch (NumberFormatException e) {
-                    log.debug("Invalid imdb_rating: {}", imdbRatingStr);
-                }
-            }
-
-            // Popularity
-            String popularityStr = getValueByColumnNames(fields, columnIndex, "popularity");
-            if (popularityStr != null) {
-                try {
-                    movie.setPopularity(new BigDecimal(popularityStr));
-                } catch (NumberFormatException e) {
-                    log.debug("Invalid popularity: {}", popularityStr);
-                }
-            }
-
-            // Stars
-            String star1Str = getValueByColumnNames(fields, columnIndex, "star1");
-            if (star1Str != null) {
-                movie.setStar1(star1Str);
-            }
-
-            String star2Str = getValueByColumnNames(fields, columnIndex, "star2");
-            if (star2Str != null) {
-                movie.setStar2(star2Str);
-            }
-
-            String star3Str = getValueByColumnNames(fields, columnIndex, "star3");
-            if (star3Str != null) {
-                movie.setStar3(star3Str);
-            }
-
-            String star4Str = getValueByColumnNames(fields, columnIndex, "star4");
-            if (star4Str != null) {
-                movie.setStar4(star4Str);
-            }
-
-            // Set defaults if not set
-            if (movie.getAdult() == null) {
-                movie.setAdult(false);
-            }
-            if (movie.getStatus() == null) {
-                movie.setStatus("Released");
-            }
+            // Set defaults
+            movie.setAdult(false);
+            movie.setPopularity(BigDecimal.ZERO);
+            movie.setStatus("Released");
 
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error parsing fields: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Error parsing fields: " + e.getMessage());
         }
 
         return movie;
     }
 
-    /**
-     * Get value by trying multiple column name variations
-     * This handles both standard and pgAdmin column names
-     */
-    private String getValueByColumnNames(String[] fields, Map<String, Integer> columnIndex, String... columnNames) {
-        for (String colName : columnNames) {
-            String normalized = colName.toLowerCase();
-            Integer idx = columnIndex.get(normalized);
-            if (idx != null && idx < fields.length) {
-                String value = getValue(fields, idx);
-                if (value != null && !value.isEmpty()) {
-                    return value;
-                }
-            }
-        }
-        return null;
-    }
 
-    /**
-     * Safely get and clean value from fields array
-     */
-    private String getValue(String[] fields, int index) {
-        if (index >= fields.length) {
-            return "";
-        }
-        return cleanField(fields[index]);
-    }
-
-    /**
-     * Export movies to CSV
-     */
     public String exportMoviesToCsv(List<Movies> movies) {
         log.info("Exporting {} movies to CSV", movies.size());
 
@@ -330,9 +165,7 @@ public class CsvService {
         return csv.toString();
     }
 
-    /**
-     * Format a movie as a CSV row
-     */
+
     private String formatCsvRow(Movies movie) {
         return String.join(",",
                 escape(movie.getId() != null ? movie.getId().toString() : ""),
@@ -354,9 +187,7 @@ public class CsvService {
         );
     }
 
-    /**
-     * Escape field for CSV (add quotes if contains comma, quote, or newline)
-     */
+
     private String escape(String field) {
         if (field == null) {
             return "";
@@ -372,9 +203,7 @@ public class CsvService {
         return field;
     }
 
-    /**
-     * Clean field value (remove quotes, trim, handle null)
-     */
+
     private String cleanField(String field) {
         if (field == null || field.trim().isEmpty()) {
             return null;
@@ -389,9 +218,46 @@ public class CsvService {
         return field.isEmpty() ? null : field;
     }
 
-    /**
-     * Result DTO for import
-     */
+
+    private BigDecimal parseBigDecimal(String value) {
+        String cleaned = cleanField(value);
+        if (cleaned == null || cleaned.isEmpty()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(cleaned);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+
+    private Long parseLong(String value) {
+        String cleaned = cleanField(value);
+        if (cleaned == null || cleaned.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(cleaned);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+
+    private Integer parseInteger(String value) {
+        String cleaned = cleanField(value);
+        if (cleaned == null || cleaned.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(cleaned);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+
     @lombok.Data
     @lombok.Builder
     public static class ImportResult {

@@ -11,7 +11,7 @@ spring:
       connection-timeout: 20000
   jpa:
     hibernate:
-      ddl-auto: validate  # CHANGED from "create" to "validate"
+      ddl-auto: update  # CHANGED from "create" to "validate"
     show-sql: false
     properties:
       hibernate:

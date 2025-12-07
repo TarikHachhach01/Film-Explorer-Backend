@@ -2,7 +2,7 @@ spring:
   application:
     name: film-explorer
   datasource:
-    url: jdbc:${DATABASE_URL}  # ✅ FIX: Adds jdbc: prefix to Render's DATABASE_URL
+    url: jdbc:${DATABASE_URL}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5

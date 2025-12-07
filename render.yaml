@@ -1,22 +1,16 @@
 services:
   - type: web
     name: film-explorer-backend
-    env: java
+    env: docker  # CHANGED from "java" to "docker"
     plan: free
     region: frankfurt
-    buildCommand: ./mvnw clean package -DskipTests
-    startCommand: java -Xmx512m -Xms256m -jar target/film-explorer-0.0.1-SNAPSHOT.jar
-    healthCheckPath: /
+    dockerfilePath: ./Dockerfile  # ADD this line
+    healthCheckPath: /actuator/health  # CHANGED to proper health endpoint
     autoDeploy: true
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: JAVA_VERSION
-        value: 21
-
-databases:
-  - name: film-explorer-db
-    databaseName: filmexplorer
-    user: filmuser
-    region: frankfurt
-    plan: free
+      - key: JAVA_OPTS
+        value: -Xmx512m -Xms256m
+      - key: JWT_SECRET
+        generateValue: true

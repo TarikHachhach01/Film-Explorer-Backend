@@ -34,13 +34,23 @@ public class AuthenticationService {
             throw new IllegalArgumentException("Email already registered");
         }
 
+        // Determine role - default to USER if not provided
+        Role userRole = Role.USER;
+        if (request.getRole() != null) {
+            try {
+                userRole = Role.valueOf(request.getRole().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                userRole = Role.USER;
+            }
+        }
+
         // Créer le nouvel utilisateur
         var user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER)
+                .role(userRole)  // ✅ CHANGED: Now uses dynamic role
                 .accountLocked(false)
                 .createdAt(LocalDateTime.now())
                 .build();

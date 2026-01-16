@@ -41,14 +41,19 @@ public class SecurityConfig {
                         // CORS preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Auth endpoints (public)
+                        // ✅ Auth endpoints (public) - AVEC LOGOUT
                         .requestMatchers("/api/auth/register").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/refresh").permitAll()
+                        .requestMatchers("/api/auth/logout").permitAll()  // ← NOUVEAU: Logout endpoint
 
                         // Movie endpoints (public)
                         .requestMatchers(HttpMethod.POST, "/api/movies/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/movies/**").permitAll()
+
+                        // ✅ Test endpoints (optionnel - pour démonstration)
+                        .requestMatchers("/api/jwt-test/**").permitAll()
+                        .requestMatchers("/api/replay-test/**").permitAll()  // ← OPTIONNEL: Pour tester replay attack
 
                         // Protected endpoints
                         .requestMatchers("/api/watchlist/**").authenticated()
@@ -68,9 +73,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // ✅ FIX: Use EXACT origins, not patterns, because allowCredentials=true
-        // CORS spec: cannot use wildcard origins when credentials are enabled
-        // Therefore: use exact origin URLs instead
+        // ✅ CORS configuration (vos paramètres préservés)
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:4200",
                 "http://localhost:3000",
@@ -95,7 +98,7 @@ public class SecurityConfig {
                 "X-Total-Count"
         ));
 
-        // Allow credentials (cookies, authorization headers) - REQUIRED for JWT
+        // Allow credentials (cookies, authorization headers)
         configuration.setAllowCredentials(true);
 
         // Cache preflight response for 1 hour

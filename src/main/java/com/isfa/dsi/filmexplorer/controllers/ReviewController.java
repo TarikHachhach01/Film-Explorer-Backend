@@ -3,6 +3,7 @@ package com.isfa.dsi.filmexplorer.controllers;
 import com.isfa.dsi.filmexplorer.DTOs.ReviewRequest;
 import com.isfa.dsi.filmexplorer.DTOs.ReviewResponse;
 import com.isfa.dsi.filmexplorer.services.ReviewService;
+import com.isfa.dsi.filmexplorer.services.TokenBlacklistService;
 import com.isfa.dsi.filmexplorer.user.User;
 import com.isfa.dsi.filmexplorer.user.UserRepo;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +24,12 @@ import java.util.Map;
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
 @Slf4j
+@CrossOrigin(origins = "http://localhost:4200")
 public class ReviewController {
 
     private final ReviewService reviewService;
     private final UserRepo userRepository;
-
+    private final TokenBlacklistService tokenBlacklistService;
 
     @GetMapping("/movie/{movieId}")
     public ResponseEntity<?> getMovieReviews(
@@ -47,7 +49,6 @@ public class ReviewController {
             }
 
             Pageable pageable = PageRequest.of(page, size);
-
             Page<ReviewResponse> reviewsPage = reviewService.getMovieReviews(movieId, userId, pageable);
 
             Map<String, Object> response = new HashMap<>();
@@ -67,7 +68,6 @@ public class ReviewController {
         } catch (Exception e) {
             log.error("Error fetching reviews for movie {}: {}", movieId, e.getMessage(), e);
 
-            // Return empty list instead of error for better UX
             Map<String, Object> emptyResponse = new HashMap<>();
             emptyResponse.put("reviews", new java.util.ArrayList<>());
             emptyResponse.put("currentPage", 0);
@@ -78,13 +78,29 @@ public class ReviewController {
         }
     }
 
-
     @PostMapping
-    public ResponseEntity<?> createReview(@RequestBody ReviewRequest reviewRequest) {
+    public ResponseEntity<?> createReview(
+            @RequestBody ReviewRequest reviewRequest,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
         log.info("Creating review for movie {} with rating {}",
                 reviewRequest.getMovieId(), reviewRequest.getRating());
 
         try {
+            // ✅ VÉRIFICATION BLACKLIST
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+
+                if (tokenBlacklistService.isBlacklisted(token)) {
+                    log.warn("🚫 Attempt to use blacklisted token for review creation");
+                    return ResponseEntity.status(401).body(new HashMap<String, Object>() {{
+                        put("success", false);
+                        put("message", "✅ REJECTED (PROTECTED!)");
+                        put("reason", "Token has been invalidated (you logged out)");
+                    }});
+                }
+            }
+
             Long userId = getCurrentUserId();
             log.info("Review created by user ID: {}", userId);
 
@@ -99,15 +115,29 @@ public class ReviewController {
         }
     }
 
-
     @PutMapping("/{id}")
     public ResponseEntity<?> updateReview(
             @PathVariable Long id,
-            @RequestBody ReviewRequest reviewRequest) {
+            @RequestBody ReviewRequest reviewRequest,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         log.info("Updating review: {}", id);
 
         try {
+            // ✅ VÉRIFICATION BLACKLIST
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+
+                if (tokenBlacklistService.isBlacklisted(token)) {
+                    log.warn("🚫 Attempt to use blacklisted token for review update");
+                    return ResponseEntity.status(401).body(new HashMap<String, Object>() {{
+                        put("success", false);
+                        put("message", "✅ REJECTED (PROTECTED!)");
+                        put("reason", "Token has been invalidated (you logged out)");
+                    }});
+                }
+            }
+
             Long userId = getCurrentUserId();
             ReviewResponse review = reviewService.updateReview(id, reviewRequest, userId);
 
@@ -120,17 +150,28 @@ public class ReviewController {
         }
     }
 
-
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReview(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteReview(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
         log.info("Deleting review: {}", id);
 
         try {
+            // ✅ VÉRIFICATION BLACKLIST
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+
+                if (tokenBlacklistService.isBlacklisted(token)) {
+                    log.warn("🚫 Attempt to use blacklisted token for review deletion");
+                    return ResponseEntity.status(401).build();
+                }
+            }
+
             Long userId = getCurrentUserId();
             reviewService.deleteReview(id, userId);
 
             log.info("Review {} deleted successfully", id);
-
 
             return ResponseEntity.noContent().build();
 
@@ -140,12 +181,23 @@ public class ReviewController {
         }
     }
 
-
     @PostMapping("/{id}/like")
-    public ResponseEntity<?> likeReview(@PathVariable Long id) {
+    public ResponseEntity<?> likeReview(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
         log.info("Liking review: {}", id);
 
         try {
+            // ✅ VÉRIFICATION BLACKLIST
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+
+                if (tokenBlacklistService.isBlacklisted(token)) {
+                    return ResponseEntity.status(401).body("Token invalidated");
+                }
+            }
+
             Long userId = getCurrentUserId();
             ReviewResponse review = reviewService.likeReview(id, userId);
 
@@ -158,12 +210,23 @@ public class ReviewController {
         }
     }
 
-
     @DeleteMapping("/{id}/like")
-    public ResponseEntity<?> unlikeReview(@PathVariable Long id) {
+    public ResponseEntity<?> unlikeReview(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
         log.info("Unliking review: {}", id);
 
         try {
+            // ✅ VÉRIFICATION BLACKLIST
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+
+                if (tokenBlacklistService.isBlacklisted(token)) {
+                    return ResponseEntity.status(401).body("Token invalidated");
+                }
+            }
+
             Long userId = getCurrentUserId();
             ReviewResponse review = reviewService.unlikeReview(id, userId);
 
@@ -176,7 +239,6 @@ public class ReviewController {
         }
     }
 
-
     private Long getCurrentUserId() {
         log.debug("Extracting user ID from authentication");
 
@@ -184,11 +246,10 @@ public class ReviewController {
 
         if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String email = userDetails.getUsername(); // Email is stored as username in JWT
+            String email = userDetails.getUsername();
 
             log.debug("User email from authentication: {}", email);
 
-            // Find user by email in database
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> {
                         log.error("User not found for email: {}", email);

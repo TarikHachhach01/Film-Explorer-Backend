@@ -4,6 +4,8 @@ import com.isfa.dsi.filmexplorer.config.JwtService;
 import com.isfa.dsi.filmexplorer.user.Role;
 import com.isfa.dsi.filmexplorer.user.User;
 import com.isfa.dsi.filmexplorer.user.UserRepo;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -50,7 +52,7 @@ public class AuthenticationService {
                 .lastName(request.getLastName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(userRole)  // ✅ CHANGED: Now uses dynamic role
+                .role(userRole)
                 .accountLocked(false)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -71,8 +73,12 @@ public class AuthenticationService {
 
     /**
      * Se connecter
+     * ✅ MODIFIÉ: Ajoute HttpServletResponse pour envoyer les cookies
      */
-    public AuthenticationResponse authenticate(AuthenticationRequest request) {
+    public AuthenticationResponse authenticate(
+            AuthenticationRequest request,
+            HttpServletResponse response) {  // ✅ NOUVEAU PARAMÈTRE
+
         log.info("Authenticating user with email: {}", request.getEmail());
 
         try {
@@ -94,14 +100,40 @@ public class AuthenticationService {
             var jwtToken = jwtService.generateToken(user);
             var refreshToken = jwtService.generateRefreshToken(user);
 
+            // ✅ NOUVEAU: Envoyer les tokens comme HttpOnly Cookies
+            setTokenCookie(response, "accessToken", jwtToken, 15 * 60);     // 15 minutes
+            setTokenCookie(response, "refreshToken", refreshToken, 7 * 24 * 60 * 60); // 7 jours
+
+            log.info("Tokens set as HttpOnly Cookies");
+
+            // ✅ Retourner vide (tokens maintenant dans les cookies)
             return AuthenticationResponse.builder()
-                    .accessToken(jwtToken)
-                    .refreshToken(refreshToken)
+                    .accessToken(null)
+                    .refreshToken(null)
                     .build();
 
         } catch (Exception e) {
             log.error("Authentication failed: {}", e.getMessage());
             throw new IllegalArgumentException("Invalid credentials");
         }
+    }
+
+    /**
+     * ✅ NOUVELLE MÉTHODE: Définir un HttpOnly Cookie
+     */
+    private void setTokenCookie(
+            HttpServletResponse response,
+            String name,
+            String value,
+            int maxAgeSeconds) {
+
+        Cookie cookie = new Cookie(name, value);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(maxAgeSeconds);
+        response.addCookie(cookie);
+
+        log.debug("Cookie {} set with maxAge {} seconds", name, maxAgeSeconds);
     }
 }

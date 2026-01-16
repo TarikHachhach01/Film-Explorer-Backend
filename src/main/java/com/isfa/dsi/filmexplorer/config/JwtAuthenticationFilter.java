@@ -2,6 +2,7 @@ package com.isfa.dsi.filmexplorer.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -36,40 +37,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         log.debug("🔍 Processing request: {} {}", requestMethod, requestPath);
 
         try {
-            // Extract the Authorization header
-            final String authHeader = request.getHeader("Authorization");
 
-            // Debug logging
-            if (authHeader == null) {
-                log.debug("⚠ No Authorization header found for: {} {}", requestMethod, requestPath);
-            } else if (!authHeader.startsWith("Bearer ")) {
-                log.debug("️ Authorization header does not start with 'Bearer ' for: {} {}", requestMethod, requestPath);
-                log.debug("Header value: {}", authHeader.substring(0, Math.min(authHeader.length(), 50)));
-            } else {
-                log.debug(" Authorization header found for: {} {}", requestMethod, requestPath);
+            String jwt = getTokenFromCookie(request);
+
+
+            if (jwt == null) {
+                jwt = getTokenFromAuthHeader(request);
             }
 
-            // Check if header exists and starts with "Bearer "
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.debug("Skipping JWT authentication - no valid Authorization header");
+
+            if (jwt == null) {
+                log.debug("Skipping JWT authentication - no token found in cookie or header");
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            // Extract the token (remove "Bearer " prefix)
-            final String jwt = authHeader.substring(7);
 
-            // Debug token format
-            log.debug("Token length: {}", jwt.length());
-            log.debug("Token preview: {}...", jwt.substring(0, Math.min(jwt.length(), 30)));
-
-            // Check token format (should have 2 dots for 3 parts: header.payload.signature)
-            int dotCount = jwt.length() - jwt.replace(".", "").length();
-            log.debug("Token dot count: {} (should be 2)", dotCount);
-
-            if (dotCount != 2) {
-                log.error(" Invalid JWT format! Expected 2 dots, found: {}", dotCount);
-                log.error("Token: {}", jwt);
+            if (!isValidTokenFormat(jwt)) {
+                log.error(" Invalid JWT format!");
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -108,7 +93,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     log.debug("User {} authenticated successfully for: {} {}",
                             userEmail, requestMethod, requestPath);
                 } else {
-                    log.warn("⚠ Token validation failed for user: {}", userEmail);
+                    log.warn(" Token validation failed for user: {}", userEmail);
                 }
             } else if (userEmail == null) {
                 log.warn(" Could not extract email from token");
@@ -127,6 +112,65 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+
+    private String getTokenFromCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+
+        if (cookies == null) {
+            log.debug("No cookies found in request");
+            return null;
+        }
+
+        // Chercher le cookie 'accessToken'
+        for (Cookie cookie : cookies) {
+            if ("accessToken".equals(cookie.getName())) {
+                log.debug(" Token found in HttpOnly Cookie");
+                return cookie.getValue();
+            }
+        }
+
+        log.debug(" No accessToken cookie found");
+        return null;
+    }
+
+
+    private String getTokenFromAuthHeader(HttpServletRequest request) {
+        final String authHeader = request.getHeader("Authorization");
+
+        // Debug logging
+        if (authHeader == null) {
+            log.debug(" No Authorization header found");
+            return null;
+        }
+
+        if (!authHeader.startsWith("Bearer ")) {
+            log.debug(" Authorization header does not start with 'Bearer '");
+            return null;
+        }
+
+        log.debug(" Authorization header found");
+
+        return authHeader.substring(7);
+    }
+
+
+    private boolean isValidTokenFormat(String jwt) {
+        // Check token format (should have 2 dots for 3 parts: header.payload.signature)
+        int dotCount = jwt.length() - jwt.replace(".", "").length();
+
+        log.debug("Token length: {}", jwt.length());
+        log.debug("Token preview: {}...", jwt.substring(0, Math.min(jwt.length(), 30)));
+        log.debug("Token dot count: {} (should be 2)", dotCount);
+
+        if (dotCount != 2) {
+            log.error(" Invalid JWT format! Expected 2 dots, found: {}", dotCount);
+            log.error("Token: {}", jwt);
+            return false;
+        }
+
+        return true;
     }
 
     @Override
